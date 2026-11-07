@@ -81,6 +81,41 @@ type ResourceMap = Record<string, ResourceEntry>;
 
 let libraryPromise: Promise<ImglyModule> | null = null;
 
+/**
+ * Callback of the `removeBackgroundAi()` call currently in flight.
+ *
+ * The library keys its session cache on `JSON.stringify(config)`, so the
+ * `progress` callback must keep a stable identity across calls (see `report`).
+ */
+let activeProgress: ((p: AiProgress) => void) | undefined;
+
+/**
+ * Stable, identity-preserving progress relay handed to the library.
+ * Forwards to whichever call is active; safe to call after it settled (no-op).
+ */
+const sharedProgress = (key: string, current: number, total: number): void => {
+  routeProgress(key, current, total);
+};
+
+/** Set per call by `removeBackgroundAi`; see `sharedProgress`. */
+let routeProgress: (key: string, current: number, total: number) => void = () => {};
+
+/** Config identical in shape for every call so the library's cache hits. */
+function baseConfig(
+  publicPath: string,
+  model: AiModelId,
+  device: 'cpu' | 'gpu',
+): ImglyConfig {
+  return {
+    publicPath,
+    model,
+    device,
+    debug: false,
+    output: { format: 'image/png' },
+    progress: sharedProgress,
+  };
+}
+
 /** Dynamically load the library exactly once. */
 function loadLibrary(): Promise<ImglyModule> {
   if (!libraryPromise) {
@@ -238,6 +273,14 @@ export async function removeBackgroundAi(
   const loads = new Map<string, number>();
   let reported = -1;
 
+  /**
+   * The library memoises its ONNX session by `JSON.stringify(config)`, and the
+   * config includes `progress`. Passing a fresh closure per call would miss the
+   * cache every time and rebuild the session — re-downloading ~79 MB and
+   * re-parsing the model (≈10 s per image instead of ≈4 s). So the config
+   * object (and its callback identity) is module-level: the callback forwards
+   * to whichever call is currently in flight.
+   */
   const report = (key: string, current: number, total: number, done = false): void => {
     if (total > 0) {
       totals.set(key, total);
@@ -254,17 +297,16 @@ export async function removeBackgroundAi(
       if (Math.abs(ratio - reported) < 0.005) return; // throttle to 0.5 %
       reported = ratio;
     }
-    onProgress?.({ loaded: sum, total: grand, ratio, label: progressLabel(key, ratio, done) });
+    activeProgress?.({ loaded: sum, total: grand, ratio, label: progressLabel(key, ratio, done) });
   };
+
+  activeProgress = onProgress;
+  routeProgress = report;
 
   const run = async (device: 'cpu' | 'gpu'): Promise<Blob> => {
     return lib.removeBackground(input, {
-      publicPath,
-      model,
-      device,
-      debug: false,
-      output: { format: 'image/png' },
-      progress: (key, current, total) => report(key, current, total),
+      ...baseConfig(publicPath, model, device),
+      progress: sharedProgress,
     });
   };
 
@@ -299,6 +341,8 @@ export async function removeBackgroundAi(
   }
 
   onProgress?.({ loaded: 1, total: 1, ratio: 1, label: 'Hoàn tất' });
+  activeProgress = undefined;
+  routeProgress = () => {};
 
   // Re-encode through a canvas only to normalise exotic outputs; usually a
   // no-op passthrough of the PNG the library produced.

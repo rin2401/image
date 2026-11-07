@@ -7,15 +7,19 @@
  * the public engine surface so the UI imports from one place, and adds small
  * UI-facing helpers such as human-readable labels for progress events.
  */
-import type { AiModelId, AiProgress, EngineId, RemovalOptions } from '../engine';
+import type {
+  AiModelId,
+  AiProgress,
+  EngineId,
+  FastRemoveOptions,
+  RemovalOptions,
+} from '../engine';
 
-export type { AiModelId, AiProgress, EngineId, RemovalOptions };
+export type { AiModelId, AiProgress, EngineId, FastRemoveOptions, RemovalOptions };
 
 export interface EngineApi {
-  removeBackgroundFast: (
-    input: ImageBitmap | Blob,
-    opts?: RemovalOptions,
-  ) => Promise<Blob>;
+  /** Fast engine: `RemovalOptions` plus `maxDimension` (matte compute size). */
+  removeBackgroundFast: (input: ImageBitmap | Blob, opts?: FastRemoveOptions) => Promise<Blob>;
   removeBackgroundAi: (
     input: Blob,
     onProgress?: (p: AiProgress) => void,
@@ -75,21 +79,39 @@ export const ENGINE_LABELS: Record<EngineId, string> = {
 
 /**
  * Turn an engine progress payload into a Vietnamese label + MB read-out.
- * Engine keys look like `fetch:/image/imgly/models/isnet_fp16` or
- * `compute:inference`.
+ *
+ * The engine reports raw library keys (`fetch:/models/isnet_quint8`,
+ * `compute:inference`, …) as `label`, but a *listening* progress reporter may
+ * also forward already-humanised Vietnamese text. Both shapes are handled.
+ *
+ * A `total` of 0 (or the 1/1 "done" sentinel the engine emits on completion)
+ * means "no byte information" — showing "0.0 / 0.0 MB" there was a bug.
  */
 export function describeProgress(p: AiProgress): { label: string; detail: string } {
   const key = (p.label ?? '').toLowerCase();
+  const hasBytes = p.total > 1024;
   const loadedMb = p.loaded / (1024 * 1024);
   const totalMb = p.total / (1024 * 1024);
-  const detail =
-    p.total > 0 ? `${loadedMb.toFixed(1)} / ${totalMb.toFixed(1)} MB` : `${loadedMb.toFixed(1)} MB`;
+  const detail = hasBytes
+    ? `${loadedMb.toFixed(1)} / ${totalMb.toFixed(1)} MB`
+    : p.loaded > 1024
+      ? `${loadedMb.toFixed(1)} MB`
+      : '';
 
-  if (key.includes('inference') || key.includes('compute') || key.includes('process')) {
+  if (p.ratio >= 1 && (/hoàn tất|done/i.test(p.label ?? '') || !hasBytes)) {
+    return { label: 'Hoàn tất', detail: '' };
+  }
+  if (key.includes('inference') || key.includes('compute') || key.includes('chuẩn bị') || key.includes('xử lý')) {
     return { label: 'Đang tách nền bằng AI…', detail: '' };
   }
-  if (key.startsWith('fetch') || key.includes('model') || key.includes('onnx') || key.includes('wasm')) {
+  if (key.includes('onnx')) {
+    return { label: 'Đang tải bộ máy tính toán (ONNX Runtime)', detail };
+  }
+  if (key.startsWith('fetch') || key.includes('model') || key.includes('mô hình')) {
     return { label: 'Đang tải mô hình AI', detail };
+  }
+  if (key.startsWith('compute') || key.includes('wasm')) {
+    return { label: 'Đang tải bộ máy tính toán', detail };
   }
   return { label: 'Đang chuẩn bị…', detail };
 }

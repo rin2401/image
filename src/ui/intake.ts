@@ -224,10 +224,17 @@ export async function createDemoImage(): Promise<File> {
   ctx.ellipse(cx, size * 0.375, size * 0.128, size * 0.158, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // Hair fringe.
+  // Hair fringe: a side-swept band that stops above the eyes (an upside-down
+  // half ellipse would read as "sunglasses" at small preview sizes).
   ctx.fillStyle = '#332720';
   ctx.beginPath();
-  ctx.ellipse(cx, size * 0.285, size * 0.132, size * 0.085, 0, 0, Math.PI);
+  ctx.ellipse(cx, size * 0.322, size * 0.137, size * 0.106, 0, Math.PI * 1.03, Math.PI * 1.97);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.133, size * 0.338);
+  ctx.quadraticCurveTo(cx - size * 0.045, size * 0.248, cx + size * 0.128, size * 0.302);
+  ctx.quadraticCurveTo(cx - size * 0.015, size * 0.312, cx - size * 0.133, size * 0.338);
   ctx.fill();
 
   // Eyes + smile.

@@ -49,11 +49,11 @@ export interface FastOptions {
   despeckle: number;
 }
 
-export const DEFAULT_FAST_OPTIONS: FastOptions = {
+export const DEFAULT_FAST_OPTIONS: FastOptions = Object.freeze({
   tolerance: 0.6,
   feather: 0.25,
   despeckle: 0.5,
-};
+});
 
 /** RGBA image, row-major, 4 bytes per pixel. */
 export interface RgbaImage {
@@ -114,7 +114,15 @@ function rgbToOklab(r: number, g: number, b: number, out: Float32Array): void {
 /* Small numeric helpers                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Clamp to 0..1, treating anything non-finite as "not provided".
+ *
+ * NaN must not survive: the UI reads slider values from `localStorage`, so a
+ * corrupted entry (`"abc"` → `NaN`) would otherwise turn every threshold NaN and
+ * silently blank the image instead of failing loudly.
+ */
 function clamp01(v: number): number {
+  if (!Number.isFinite(v)) return Number.NaN;
   return v < 0 ? 0 : v > 1 ? 1 : v;
 }
 
@@ -886,40 +894,117 @@ export function rasterizeAlpha(
   width: number,
   height: number,
   feather: number,
+  source?: Uint8ClampedArray,
+  model?: BackgroundModel,
 ): Float32Array {
   const n = width * height;
   const alpha = new Float32Array(n);
   for (let p = 0; p < n; p++) alpha[p] = label[p] === BG ? 0 : 1;
 
-  // ---- pass 1: coverage estimation on the 1px boundary band --------------
-  // For each pixel, look at its 4 neighbours; the resulting 0..255 coverage is
-  // effectively a 3x3 area sample, but interior pixels stay exactly 0/1.
+  // ---- pass 1: anti-aliased coverage on the 1px boundary band ------------
+  // The label map is *binary* and derived from a colour-distance threshold, so
+  // its edge is aliased and sits at an arbitrary sub-pixel position inside the
+  // 1–2 px transition. Deriving alpha from the binary map alone gives a matte
+  // that is "mushy" by ±2 px and shifts with the tolerance slider.
+  //
+  // When the source pixels are available we instead invert the blend that the
+  // browser/JPEG applied to produce the edge:
+  //     C = α·F + (1-α)·B     ⇒     α = (C-B)·(F-B) / |F-B|²
+  // where `F` is the local interior foreground colour and `B` the background
+  // model colour at this pixel. That recovers the true coverage and is immune to
+  // where the threshold landed.
+  //
+  // Without source pixels (unit tests of the label stage) we fall back to a 3×3
+  // coverage kernel, which is aliased but never wrong in the ±0.5 px sense.
   const fgMask = (p: number): number => (label[p] === BG ? 0 : 255);
+  const edge = new Uint8Array(n);
+  let hasEdge = false;
   for (let y = 0; y < height; y++) {
     const yUp = y > 0;
     const yDn = y < height - 1;
     for (let x = 0; x < width; x++) {
       const p = y * width + x;
       const self = fgMask(p);
-      // quick reject: interior and exterior pixels are already binary
-      const l = x > 0 ? fgMask(p - 1) : self;
-      const r = x < width - 1 ? fgMask(p + 1) : self;
-      if (l === self && r === self) {
-        const u = yUp ? fgMask(p - width) : self;
-        const d = yDn ? fgMask(p + width) : self;
-        if (u === self && d === self) continue;
+      let isEdge = false;
+      if ((x > 0 && fgMask(p - 1) !== self) || (x < width - 1 && fgMask(p + 1) !== self)) {
+        isEdge = true;
+      } else if ((yUp && fgMask(p - width) !== self) || (yDn && fgMask(p + width) !== self)) {
+        isEdge = true;
       }
-      // 9-tap weighted coverage: centre + 4 orthogonal + 4 diagonal.
-      let sum = self * 4;
-      if (x > 0) sum += l * 2;
-      if (x < width - 1) sum += r * 2;
-      if (yUp) sum += fgMask(p - width) * 2;
-      if (yDn) sum += fgMask(p + width) * 2;
-      if (x > 0 && yUp) sum += fgMask(p - width - 1);
-      if (x < width - 1 && yUp) sum += fgMask(p - width + 1);
-      if (x > 0 && yDn) sum += fgMask(p + width - 1);
-      if (x < width - 1 && yDn) sum += fgMask(p + width + 1);
-      alpha[p] = sum / 16 / 255;
+      if (isEdge) {
+        edge[p] = 1;
+        hasEdge = true;
+      }
+    }
+  }
+
+  if (hasEdge) {
+    const canUnmix = !!source && !!model;
+    const bgR = model ? model.mean[0] : 0;
+    const bgG = model ? model.mean[1] : 0;
+    const bgB = model ? model.mean[2] : 0;
+
+    // Degenerate contrast guard: if the local foreground is (nearly) the same
+    // colour as the background, unmixing is ill-conditioned — keep the binary
+    // value instead of amplifying noise.
+    const MIN_DEN = 24;
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const p = y * width + x;
+        if (!edge[p]) continue;
+
+        if (!canUnmix) {
+          // Coverage-kernel fallback on the binary map.
+          const l = x > 0 ? fgMask(p - 1) : fgMask(p);
+          const r = x < width - 1 ? fgMask(p + 1) : fgMask(p);
+          const u = y > 0 ? fgMask(p - width) : fgMask(p);
+          const d = y < height - 1 ? fgMask(p + width) : fgMask(p);
+          const covX = (l + fgMask(p) + r) / 3 / 255;
+          const covY = (u + fgMask(p) + d) / 3 / 255;
+          alpha[p] = 0.5 * (covX + covY);
+          continue;
+        }
+
+        // Local interior foreground colour: mean of non-edge foreground pixels
+        // in a 5×5 window. Local (not global) so a multi-coloured subject does
+        // not bleed one region's colour into another's edge.
+        let fr = 0;
+        let fg_ = 0;
+        let fb = 0;
+        let count = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= height) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const xx = x + dx;
+            if (xx < 0 || xx >= width) continue;
+            const q = yy * width + xx;
+            if (label[q] === BG || edge[q]) continue;
+            const o = q * 4;
+            fr += source![o];
+            fg_ += source![o + 1];
+            fb += source![o + 2];
+            count++;
+          }
+        }
+        if (count === 0) continue;
+        const inv = 1 / count;
+        const mr = fr * inv;
+        const mg = fg_ * inv;
+        const mb = fb * inv;
+
+        const o = p * 4;
+        const dr = mr - bgR;
+        const dg = mg - bgG;
+        const db = mb - bgB;
+        const den = dr * dr + dg * dg + db * db;
+        if (den < MIN_DEN) continue; // no usable contrast — keep binary value
+
+        const estimate =
+          ((source![o] - bgR) * dr + (source![o + 1] - bgG) * dg + (source![o + 2] - bgB) * db) / den;
+        alpha[p] = estimate < 0 ? 0 : estimate > 1 ? 1 : estimate;
+      }
     }
   }
 
@@ -1006,10 +1091,15 @@ export function decontaminateEdge(
 
 /** Normalise partial options into a complete `FastOptions`. */
 export function normalizeFastOptions(opts?: Partial<FastOptions> | null): FastOptions {
+  const pick = (value: number | undefined, fallback: number): number => {
+    if (value === undefined || value === null) return fallback;
+    const clamped = clamp01(value);
+    return Number.isNaN(clamped) ? fallback : clamped;
+  };
   return {
-    tolerance: clamp01(opts?.tolerance ?? DEFAULT_FAST_OPTIONS.tolerance),
-    feather: clamp01(opts?.feather ?? DEFAULT_FAST_OPTIONS.feather),
-    despeckle: clamp01(opts?.despeckle ?? DEFAULT_FAST_OPTIONS.despeckle),
+    tolerance: pick(opts?.tolerance, DEFAULT_FAST_OPTIONS.tolerance),
+    feather: pick(opts?.feather, DEFAULT_FAST_OPTIONS.feather),
+    despeckle: pick(opts?.despeckle, DEFAULT_FAST_OPTIONS.despeckle),
   };
 }
 
@@ -1032,7 +1122,7 @@ export function removeBackgroundFastCore(image: RgbaImage, options?: Partial<Fas
   const label = growBackground(dist, width, height, growTol, seedTol);
   fillEnclosedBackground(label, dist, width, height, growTol);
   despeckleAlpha(label, width, height, opts.despeckle);
-  const alpha = rasterizeAlpha(label, width, height, opts.feather);
+  const alpha = rasterizeAlpha(label, width, height, opts.feather, data, model);
 
   const out = new Uint8ClampedArray(n * 4);
   out.set(data);

@@ -22,6 +22,11 @@ function isModelId(value: string | null): value is AiModelId {
   return !!value && AI_MODELS.some((model) => model.id === value);
 }
 
+/** Narrow a raw radio value to a model we actually offer in the UI. */
+function isOffered(value: string): value is OfferedModelId {
+  return value in LABEL_KEY;
+}
+
 function readStored(): AiModelId | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -31,11 +36,18 @@ function readStored(): AiModelId | null {
   }
 }
 
-const DESC_KEY: Record<AiModelId, 'model.fast.desc' | 'model.hq.desc'> = {
+/**
+ * We deliberately never offer `isnet` (176 MB) — only the two vendored models.
+ * Keying by `Exclude<AiModelId, 'isnet'>` makes that constraint explicit and
+ * keeps the maps exhaustive for everything we do offer.
+ */
+type OfferedModelId = Exclude<AiModelId, 'isnet'>;
+
+const DESC_KEY: Record<OfferedModelId, 'model.fast.desc' | 'model.hq.desc'> = {
   isnet_quint8: 'model.fast.desc',
   isnet_fp16: 'model.hq.desc',
 };
-const LABEL_KEY: Record<AiModelId, 'model.fast' | 'model.hq'> = {
+const LABEL_KEY: Record<OfferedModelId, 'model.fast' | 'model.hq'> = {
   isnet_quint8: 'model.fast',
   isnet_fp16: 'model.hq',
 };
@@ -71,10 +83,10 @@ export function createModelSelect(panel: HTMLElement | null): ModelSelect {
 
   inputs = $$<HTMLInputElement>('input[type="radio"]', root);
 
-  // Localise labels and mark the recommended (default) option.
+  // Localise labels. Only the two offered models have copy.
   for (const input of inputs) {
-    const id = input.value as AiModelId;
-    if (!isModelId(id)) continue;
+    const id = input.value;
+    if (!isOffered(id)) continue;
     const label = input.closest('label');
     const strong = label?.querySelector('strong');
     const small = label?.querySelector('small');

@@ -18,6 +18,7 @@ import {
   type RemovalOptions,
 } from './ui/engineAdapter';
 import { createModelSelect, type ModelSelect } from './ui/modelSelect';
+import { setupCrossOriginIsolation } from './ui/isolation';
 import { initI18n, t } from './ui/i18n';
 import {
   MAX_BATCH,
@@ -401,12 +402,16 @@ class App {
     if (this.dom.workspace.hidden === !show) return;
     if (show) {
       this.dom.workspace.hidden = false;
+      // Collapse the big dropzone to a compact bar so the result gets the
+      // viewport; the window-wide drop guard still accepts files anywhere.
+      document.documentElement.classList.add('has-image');
       this.dom.workspace.classList.add('is-revealing');
       window.setTimeout(() => this.dom.workspace?.classList.remove('is-revealing'), 320);
       // Prevent layout shift while the viewer sizes itself.
       this.setImageSrc(this.dom.compareBefore, this.originalUrl);
     } else {
       this.dom.workspace.hidden = true;
+      document.documentElement.classList.remove('has-image');
     }
   }
 
@@ -1212,6 +1217,9 @@ function boot(): void {
     console.error('[xoa-nen-anh] boot failed', error);
     toastError(t('toast.engineUnavailable'));
   }
+  // Performance-only: enables WASM multi-threading for the AI engine.
+  // Deliberately not awaited — it may trigger a one-time reload.
+  void setupCrossOriginIsolation();
 }
 
 if (document.readyState === 'loading') {

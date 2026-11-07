@@ -100,7 +100,14 @@ function loadLibrary(): Promise<ImglyModule> {
 const verified = new Map<string, string>();
 let localBase: string | null = null;
 
-/** The vendored asset directory for this deployment (`/image/imgly/` on Pages). */
+/**
+ * The vendored asset directory for this deployment (`/image/imgly/` on Pages).
+ *
+ * Always returned as an **absolute** URL. The library resolves chunk names with
+ * `new URL(chunk.name, config.publicPath)`, which throws
+ * `TypeError: Invalid base URL` for a relative base such as `/image/imgly/` —
+ * so `localAssetBase()` must hand it `http://host/image/imgly/`.
+ */
 function localAssetBase(): string {
   if (localBase !== null) return localBase;
   let base = '/';
@@ -113,7 +120,9 @@ function localAssetBase(): string {
     /* not bundled by Vite — keep '/' */
   }
   if (!base.endsWith('/')) base += '/';
-  localBase = `${base}imgly/`;
+  const relative = `${base}imgly/`;
+  const href = typeof location !== 'undefined' ? location.href : 'http://localhost/';
+  localBase = new URL(relative, href).toString();
   return localBase;
 }
 
@@ -249,8 +258,7 @@ export async function removeBackgroundAi(
   };
 
   const run = async (device: 'cpu' | 'gpu'): Promise<Blob> => {
-    const source = await input.arrayBuffer();
-    return lib.removeBackground(new Uint8Array(source), {
+    return lib.removeBackground(input, {
       publicPath,
       model,
       device,
@@ -278,7 +286,13 @@ export async function removeBackgroundAi(
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Distinguish "we never got the weights" from "the model ran and failed".
-    if (/fetch|network|Failed to load|loadAsBlob|404|CORS/i.test(message)) {
+    // Missing/incorrect asset URLs surface as TypeError: Invalid base URL,
+    // "Failed to fetch ... with size", "Resource ... not found", etc.
+    if (
+      /fetch|network|Failed to load|loadAsBlob|404|CORS|Invalid base URL|Resource (metadata )?|with size|Failed to create session|no available backend/i.test(
+        message,
+      )
+    ) {
       throw new Error(ERR_LOAD);
     }
     throw new Error(ERR_RUN);

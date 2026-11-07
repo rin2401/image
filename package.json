@@ -1,0 +1,35 @@
+{
+  "name": "image",
+  "version": "1.0.0",
+  "description": "Xóa nền ảnh — tách nền trong suốt ngay trong trình duyệt",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run assets:models && tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test-engine": "node --experimental-strip-types scripts/test-engine.mjs",
+    "assets:models": "node scripts/fetch-model-assets.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "background-removal",
+    "image",
+    "canvas"
+  ],
+  "author": "rin2401 <rin2401@gmail.com>",
+  "license": "AGPL-3.0-only",
+  "private": "true",
+  "type": "module",
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  },
+  "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
+    "onnxruntime-web": "^1.21.0"
+  },
+  "homepage": "https://rin2401.github.io/image/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rin2401/image.git"
+  }
+}

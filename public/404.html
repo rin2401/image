@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Không tìm thấy trang — Xóa nền ảnh</title>
+    <meta name="robots" content="noindex" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/svg+xml" href="/image/favicon.svg" />
+    <!--
+      This is a GitHub Pages fallback page (served at any unknown path under
+      /image/). Keep every link relative-friendly: on Pages the site lives at
+      /image/, so a bare "./" resolves relative to the requested (unknown)
+      URL — hence the explicit base-dependent path below.
+    -->
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --fg: #171a21;
+        --muted: #5b6273;
+        --border: #e4e7ef;
+        --accent: #4f46e5;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e1015;
+          --card: #161921;
+          --fg: #eef0f6;
+          --muted: #a0a7b8;
+          --border: #262b36;
+          --accent: #8b8cf8;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      main {
+        width: min(520px, 100%);
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 32px 28px;
+        text-align: center;
+        box-shadow: 0 12px 32px -18px rgb(16 20 32 / 0.35);
+      }
+      .code {
+        font-size: 64px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        margin: 0 0 8px;
+        background: linear-gradient(135deg, var(--accent), #8b5cf6);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      h1 { font-size: 21px; margin: 0 0 8px; }
+      p { margin: 0 0 20px; color: var(--muted); }
+      a.btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 20px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+      }
+      a.btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="code">404</p>
+      <h1>Không tìm thấy trang này</h1>
+      <p>Đường dẫn bạn mở không tồn tại. Ảnh của bạn không bị ảnh hưởng gì.</p>
+      <a class="btn" id="home" href="/image/">← Về trang xóa nền ảnh</a>
+    </main>
+    <script>
+      // Stay correct if the site is ever deployed at a different base path.
+      (function () {
+        var parts = location.pathname.split('/').filter(Boolean);
+        // GitHub Pages project site: /<repo>/... — first segment is the base.
+        if (parts.length > 0 && parts[0] !== 'index.html') {
+          var base = '/' + parts[0] + '/';
+          if (location.pathname.indexOf('/' + parts[0] + '/') === 0) {
+            document.getElementById('home').setAttribute('href', base);
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

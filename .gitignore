@@ -1,0 +1,6 @@
+node_modules/
+dist/
+public/imgly/
+.DS_Store
+*.log
+.vite/

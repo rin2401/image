@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="vi" prefix="og: https://ogp.me/ns#">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Xóa nền ảnh — tách nền trong suốt miễn phí | rin2401</title>
+    <meta
+      name="description"
+      content="Xóa nền ảnh trực tuyến miễn phí, chạy hoàn toàn trên thiết bị của bạn: tách nền trong suốt, xuất PNG/JPG/WebP, xử lý hàng loạt. Ảnh không bao giờ được tải lên máy chủ."
+    />
+    <meta name="author" content="rin2401" />
+    <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="vi_VN" />
+    <meta property="og:title" content="Xóa nền ảnh — tách nền trong suốt miễn phí" />
+    <meta
+      property="og:description"
+      content="Xóa nền ảnh ngay trong trình duyệt. Riêng tư tuyệt đối, không cần đăng ký."
+    />
+    <meta property="og:url" content="https://rin2401.github.io/image/" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="canonical" href="https://rin2401.github.io/image/" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+  </head>
+  <body>
+    <a class="skip-link" href="#app">Bỏ qua tới nội dung</a>
+
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 16.5 9 11l3.5 3.5L16 11l4 4.5" />
+            <circle cx="8.5" cy="7.5" r="1.6" />
+            <rect x="2.5" y="3.5" width="19" height="17" rx="3" stroke-dasharray="3 3" />
+          </svg>
+        </span>
+        <span class="brand-name">Xóa nền ảnh</span>
+      </div>
+      <nav class="site-nav" aria-label="Liên kết">
+        <a href="#how-it-works">Cách dùng</a>
+        <a href="https://github.com/rin2401/image" rel="noopener" target="_blank">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="app" class="app">
+      <section class="hero" aria-labelledby="hero-title">
+        <h1 id="hero-title">Xóa nền ảnh <span class="grad">trong vài giây</span></h1>
+        <p class="subtitle">
+          Tách nền trong suốt bằng AI hoặc thuật toán nhanh — ngay trong trình duyệt của bạn.
+        </p>
+        <p class="privacy-badge" data-privacy-badge>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3Z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          Ảnh được xử lý ngay trên thiết bị — không tải lên máy chủ
+        </p>
+      </section>
+
+      <div class="error-banner" data-error-banner role="alert" hidden></div>
+      <div class="toasts" data-toasts aria-live="polite" aria-atomic="false"></div>
+
+      <!-- 1. Drop / pick -->
+      <section class="card dropzone-card" aria-labelledby="upload-title">
+        <h2 id="upload-title" class="sr-only">Tải ảnh lên</h2>
+        <div
+          class="dropzone"
+          data-dropzone
+          data-paste-target
+          tabindex="0"
+          role="button"
+          aria-describedby="dropzone-hint"
+        >
+          <input
+            data-file-input
+            class="sr-only"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/bmp,image/heic,image/heif"
+            multiple
+            aria-label="Chọn ảnh từ máy tính"
+          />
+          <div class="dropzone-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5" />
+              <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+            </svg>
+          </div>
+          <p class="dropzone-title">Kéo thả ảnh vào đây</p>
+          <p id="dropzone-hint" class="dropzone-hint">
+            hoặc dán bằng <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>V</kbd> · PNG, JPG, WebP, AVIF · tối đa 20MB
+          </p>
+          <div class="dropzone-actions">
+            <button type="button" class="btn btn-primary" data-browse-btn>Chọn ảnh</button>
+            <button type="button" class="btn btn-ghost" data-demo-btn>Dùng ảnh mẫu</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Workspace -->
+      <section class="card workspace" data-workspace hidden aria-labelledby="viewer-title">
+        <h2 id="viewer-title" class="sr-only">Kết quả</h2>
+
+        <div class="workspace-bar">
+          <div class="meta">
+            <span data-meta-dims>—</span>
+            <span class="dot" aria-hidden="true">·</span>
+            <span data-meta-size>—</span>
+          </div>
+          <div class="zoom-controls" role="group" aria-label="Thu phóng">
+            <button type="button" class="icon-btn" data-zoom-out aria-label="Thu nhỏ">−</button>
+            <span class="zoom-label" data-zoom-label>100%</span>
+            <button type="button" class="icon-btn" data-zoom-in aria-label="Phóng to">+</button>
+            <button type="button" class="icon-btn" data-zoom-fit aria-label="Vừa khung">⤢</button>
+            <button type="button" class="icon-btn" data-zoom-reset aria-label="Kích thước gốc">1:1</button>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" data-reset-btn>Ảnh khác</button>
+        </div>
+
+        <div class="viewer" data-viewer>
+          <div class="compare" data-compare>
+            <div class="compare-layer checker">
+              <img data-compare-after alt="Ảnh đã xóa nền" draggable="false" />
+            </div>
+            <div class="compare-layer compare-before-layer">
+              <img data-compare-before alt="Ảnh gốc" draggable="false" />
+            </div>
+            <div class="compare-handle" data-compare-handle aria-hidden="true">
+              <span class="compare-grip">⟨ ⟩</span>
+            </div>
+            <input
+              class="compare-range"
+              data-compare-range
+              type="range"
+              min="0"
+              max="100"
+              value="50"
+              step="1"
+              aria-label="So sánh ảnh gốc và ảnh đã xóa nền"
+            />
+            <span class="compare-tag compare-tag-before" aria-hidden="true">Gốc</span>
+            <span class="compare-tag compare-tag-after" aria-hidden="true">Đã xóa nền</span>
+          </div>
+        </div>
+
+        <div class="processing-overlay" data-processing-overlay hidden>
+          <div class="spinner" aria-hidden="true"></div>
+          <p data-processing-text>Đang xử lý…</p>
+          <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="progress-bar" data-ai-bar style="width: 0%"></div>
+          </div>
+          <p class="progress-text" data-ai-progress-text></p>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+          <fieldset class="engine" data-engine-group>
+            <legend class="sr-only">Công cụ xóa nền</legend>
+            <label class="seg">
+              <input type="radio" name="engine" data-engine value="ai" checked />
+              <span>
+                <strong>AI</strong>
+                <small>chất lượng cao</small>
+              </span>
+            </label>
+            <label class="seg">
+              <input type="radio" name="engine" data-engine value="fast" />
+              <span>
+                <strong>Nhanh</strong>
+                <small>nền đơn sắc</small>
+              </span>
+            </label>
+          </fieldset>
+
+          <div class="engine-panels">
+            <div class="engine-panel" data-ai-panel>
+              <p class="mode-hint" data-mode-hint>
+                Lần đầu chạy sẽ tải model AI (~10MB) về trình duyệt, sau đó dùng lại từ cache.
+              </p>
+              <div class="ai-progress" data-ai-progress hidden>
+                <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <div class="progress-bar" data-ai-bar style="width: 0%"></div>
+                </div>
+                <p class="progress-text" data-ai-progress-text></p>
+              </div>
+            </div>
+
+            <div class="engine-panel" data-fast-panel hidden>
+              <div class="sliders">
+                <label class="slider">
+                  <span class="slider-head">
+                    <span>Độ nhạy nền</span>
+                    <output data-slider-out="tolerance">60%</output>
+                  </span>
+                  <input type="range" data-slider="tolerance" min="0" max="100" value="60" />
+                </label>
+                <label class="slider">
+                  <span class="slider-head">
+                    <span>Làm mượt viền</span>
+                    <output data-slider-out="feather">25%</output>
+                  </span>
+                  <input type="range" data-slider="feather" min="0" max="100" value="25" />
+                </label>
+                <label class="slider">
+                  <span class="slider-head">
+                    <span>Loại bỏ đốm nhỏ</span>
+                    <output data-slider-out="despeckle">50%</output>
+                  </span>
+                  <input type="range" data-slider="despeckle" min="0" max="100" value="50" />
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="export">
+            <div class="export-bg">
+              <label for="export-bg">Nền khi xuất JPG/WebP</label>
+              <div class="swatches" role="group" aria-label="Màu nền">
+                <input type="color" id="export-bg" data-export-bg value="#ffffff" aria-label="Chọn màu nền" />
+                <button type="button" class="swatch" data-bg-swatch="#ffffff" style="--c:#ffffff" aria-label="Nền trắng"></button>
+                <button type="button" class="swatch" data-bg-swatch="#000000" style="--c:#000000" aria-label="Nền đen"></button>
+                <button type="button" class="swatch" data-bg-swatch="#4f46e5" style="--c:#4f46e5" aria-label="Nền xanh indigo"></button>
+                <button type="button" class="swatch" data-bg-swatch="#10b981" style="--c:#10b981" aria-label="Nền xanh lá"></button>
+              </div>
+            </div>
+            <div class="export-actions">
+              <button type="button" class="btn btn-primary" data-download-btn>⬇ Tải PNG trong suốt</button>
+              <button type="button" class="btn btn-ghost" data-export-png>PNG</button>
+              <button type="button" class="btn btn-ghost" data-export-jpg>JPG</button>
+              <button type="button" class="btn btn-ghost" data-export-webp>WebP</button>
+              <button type="button" class="btn btn-ghost" data-copy-btn>Copy</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Batch -->
+      <section class="card batch" aria-labelledby="batch-title">
+        <div class="batch-head">
+          <h2 id="batch-title">Hàng loạt <span class="count" data-batch-count>0</span></h2>
+          <div class="batch-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-batch-zip>Tải tất cả (.zip)</button>
+            <button type="button" class="btn btn-ghost btn-sm" data-batch-clear>Xóa danh sách</button>
+          </div>
+        </div>
+        <ul class="batch-list" data-batch-list></ul>
+        <p class="empty-hint" data-batch-empty>Chọn nhiều ảnh cùng lúc để xử lý hàng loạt.</p>
+      </section>
+
+      <!-- 4. How it works -->
+      <section class="card how" id="how-it-works" aria-labelledby="how-title">
+        <h2 id="how-title">Cách dùng</h2>
+        <ol class="steps">
+          <li><strong>Chọn ảnh</strong><span>Kéo thả, dán hoặc bấm chọn.</span></li>
+          <li><strong>Xóa nền</strong><span>AI hoặc chế độ nhanh cho nền đơn sắc.</span></li>
+          <li><strong>Tải về</strong><span>PNG trong suốt, JPG/WebP nền màu tuỳ chọn.</span></li>
+        </ol>
+        <details class="faq">
+          <summary>Ảnh của tôi có bị tải lên máy chủ không?</summary>
+          <p>Không. Toàn bộ quá trình chạy bằng JavaScript/WASM trong trình duyệt trên máy của bạn.</p>
+        </details>
+        <details class="faq">
+          <summary>Vì sao chế độ AI chậm ở lần đầu?</summary>
+          <p>Model AI (~10MB) được tải về một lần rồi lưu trong cache của trình duyệt cho các lần sau.</p>
+        </details>
+        <details class="faq">
+          <summary>Chế độ nhanh phù hợp với ảnh nào?</summary>
+          <p>Ảnh có nền đơn sắc hoặc chuyển màu đơn giản (ảnh chụp studio, sản phẩm, ảnh thẻ). Với ảnh nền phức tạp, hãy dùng chế độ AI.</p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Made by <a href="https://github.com/rin2401" target="_blank" rel="noopener">rin2401</a> ·
+        <a href="mailto:rin2401@gmail.com">rin2401@gmail.com</a>
+      </p>
+      <p class="legal">
+        Mã nguồn mở trên
+        <a href="https://github.com/rin2401/image" target="_blank" rel="noopener">GitHub</a>.
+        Ảnh AI xử lý bởi
+        <a href="https://github.com/imgly/background-removal-js" target="_blank" rel="noopener">@imgly/background-removal</a>.
+      </p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

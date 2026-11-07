@@ -1,0 +1,32 @@
+{
+  "name": "Xóa nền ảnh — chạy hoàn toàn trên trình duyệt",
+  "short_name": "Xóa nền ảnh",
+  "description": "Xóa nền ảnh ngay trên thiết bị của bạn: không tải lên máy chủ, không cần đăng ký.",
+  "lang": "vi",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#f6f7fb",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

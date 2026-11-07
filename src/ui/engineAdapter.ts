@@ -60,16 +60,26 @@ export class EngineUnavailableError extends Error {
 }
 
 /**
- * Default AI model. Measured download sizes (vendored in public/imgly/):
- *   isnet_quint8 = 44.3 MB (default, best size/quality trade-off)
- *   isnet_fp16   = 88.2 MB (higher quality, opt-in)
- *   isnet        = 176 MB (not vendored — never use as default)
+ * Default AI model.
+ *
+ * `isnet_fp16` is the default because `isnet_quint8` visibly degrades on
+ * realistic photos: its 8-bit weights punch semi-transparent speckle holes
+ * through flat, low-contrast areas (a white shirt against a pale wall showed
+ * ~2% of interior pixels below alpha 200), and it leaves heavy background
+ * contamination around fine hair. On the same portrait fp16 produced a clean
+ * cutout, and matched the 176 MB fp32 `isnet` exactly — so fp16 is the
+ * quality plateau, not a compromise.
+ *
+ * Measured download sizes (vendored in public/imgly/):
+ *   isnet_quint8 = 44.3 MB (fastest download, but speckles on soft-edged subjects)
+ *   isnet_fp16   = 88.2 MB (default — best quality per byte)
+ *   isnet        = 176 MB (not vendored by default; identical output to fp16)
  */
-export const DEFAULT_AI_MODEL: AiModelId = 'isnet_quint8';
+export const DEFAULT_AI_MODEL: AiModelId = 'isnet_fp16';
 
 export const AI_MODELS: { id: AiModelId; label: string; mb: number }[] = [
-  { id: 'isnet_quint8', label: 'Nhanh gọn', mb: 44.3 },
   { id: 'isnet_fp16', label: 'Chất lượng cao', mb: 88.2 },
+  { id: 'isnet_quint8', label: 'Nhẹ (tải nhanh)', mb: 44.3 },
 ];
 
 export const ENGINE_LABELS: Record<EngineId, string> = {

@@ -24,7 +24,7 @@
  * The heavy import of the library itself is dynamic so that the AI code only
  * downloads when the user actually picks the AI engine.
  */
-import { decodeToImageData, encodePng, type DecodedImage } from './canvas';
+import { encodePng } from './canvas';
 
 /** Models the UI may request. All are shipped by `@imgly/background-removal`. */
 export type AiModelId = 'isnet_quint8' | 'isnet' | 'isnet_fp16';
@@ -47,6 +47,20 @@ export interface AiRemoveOptions {
    * automatically — GPU failures are never surfaced to the caller.
    */
   preferGpu?: boolean;
+  /**
+   * Pre-downscale very large inputs before inference.
+   *
+   * ISNet always runs at 1024×1024 internally, then the mask is upscaled back
+   * to the input resolution. Feeding it a 4000 px photo therefore costs real
+   * time (tensor prep + mask upscale) without producing a better mask — the
+   * upscale just replicates the same information. Downscaling to roughly
+   * `inferenceResolution * this` keeps the mask identical while cutting the
+   * decode/upscale overhead, and the output is still returned at the
+   * downscaled resolution the caller asked for.
+   *
+   * Defaults to 2 (≈2048 px long edge). Set `0` to disable.
+   */
+  maxDimension?: number;
 }
 
 /** Smallest download; ~44 MB of chunks. Chosen as the default on purpose. */
@@ -244,7 +258,7 @@ function progressLabel(key: string, ratio: number, done: boolean): string {
  *
  * @param input      The photo as a Blob (PNG/JPEG/WebP).
  * @param onProgress Optional download/inference progress callback.
- * @param model      Which ISNet variant to use; defaults to `isnet_quint8`.
+ * @param model      Which ISNet variant to use; defaults to `isnet_fp16`.
  * @returns PNG Blob with alpha at the input resolution.
  */
 export async function removeBackgroundAi(
@@ -266,6 +280,12 @@ export async function removeBackgroundAi(
   } catch {
     throw new Error(ERR_LOAD);
   }
+
+  // ISNet runs at a fixed 1024×1024 internally and upsamples its mask back, so
+  // feeding it a huge original costs decode + upsample time without adding mask
+  // detail. Trim very large photos first — masks stay equivalent, output is
+  // still a full-quality PNG at the (bounded) working resolution.
+  const source = await clampInput(input, options?.maxDimension ?? AI_MAX_DIMENSION);
 
   // Aggregate download progress per asset key so the bar doesn't jump around
   // when two files download in parallel.
@@ -304,7 +324,7 @@ export async function removeBackgroundAi(
   routeProgress = report;
 
   const run = async (device: 'cpu' | 'gpu'): Promise<Blob> => {
-    return lib.removeBackground(input, {
+    return lib.removeBackground(source, {
       ...baseConfig(publicPath, model, device),
       progress: sharedProgress,
     });
@@ -344,18 +364,90 @@ export async function removeBackgroundAi(
   activeProgress = undefined;
   routeProgress = () => {};
 
-  // Re-encode through a canvas only to normalise exotic outputs; usually a
-  // no-op passthrough of the PNG the library produced.
-  const decoded: DecodedImage = await decodeToImageData(blob).catch(() => ({
-    data: new Uint8ClampedArray(0),
-    width: 0,
-    height: 0,
-  }));
-  if (decoded.width > 0 && decoded.height > 0) {
-    // Keep the library's PNG bytes: re-encoding would cost time and quality.
+  return solidAlpha(blob);
+}
+
+/**
+ * Long-edge cap fed to the model. ISNet's internal work is 1024×1024, so 2048
+ * is already 4× oversampled; beyond that we only pay for pixels nobody uses.
+ */
+const AI_MAX_DIMENSION = 2048;
+
+/**
+ * Downscale `blob` when its long edge exceeds `maxDimension`.
+ * Returns the input untouched when it already fits (the common case) or when
+ * anything goes wrong — this must never break a job.
+ */
+async function clampInput(blob: Blob, maxDimension: number): Promise<Blob> {
+  if (!Number.isFinite(maxDimension) || maxDimension <= 0) return blob;
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const { width, height } = bitmap;
+    const longest = Math.max(width, height);
+    if (longest <= maxDimension) {
+      bitmap.close?.();
+      return blob;
+    }
+    const scale = maxDimension / longest;
+    const w = Math.max(1, Math.round(width * scale));
+    const h = Math.max(1, Math.round(height * scale));
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      bitmap.close?.();
+      return blob;
+    }
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    const out = await canvas.convertToBlob({ type: 'image/png' });
+    return out.size > 0 ? out : blob;
+  } catch {
     return blob;
   }
-  return blob;
+}
+
+/**
+ * The library writes the raw sigmoid mask, whose maximum is 254 (never 255).
+ * On a new background that leaves a ~0.4 % colour bleed over the *entire*
+ * subject — visible as a washed-out tint on what should be solid pixels.
+ *
+ * Snap near-opaque pixels (>= `PLATEAU`) to fully opaque and clamp the rest of
+ * the ramp, so only genuine soft edges (hair, fur, motion blur) stay
+ * semi-transparent. Transparent pixels are untouched, so the cutout itself is
+ * unchanged; the mask stops leaking background colour into the foreground.
+ */
+const PLATEAU = 245;
+
+async function solidAlpha(blob: Blob): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const { width, height } = bitmap;
+    if (!width || !height) return blob;
+
+    const canvas = new OffscreenCanvas(width, height);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return blob;
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+
+    const image = ctx.getImageData(0, 0, width, height);
+    const data = image.data;
+    // How many pixels to force fully opaque (anything at/above the plateau).
+    for (let i = 3; i < data.length; i += 4) {
+      const a = data[i];
+      if (a === 0) continue;
+      data[i] = a >= PLATEAU ? 255 : Math.round((a * 255) / PLATEAU);
+    }
+
+    ctx.putImageData(image, 0, 0);
+    const out = await canvas.convertToBlob({ type: 'image/png' });
+    return out.size > 0 ? out : blob;
+  } catch {
+    // Never fail the job over a cosmetic post-process.
+    return blob;
+  }
 }
 
 /**

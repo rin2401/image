@@ -6,7 +6,8 @@
  *
  * Usage:
  *   node scripts/fetch-model-assets.mjs            # quantized model (44MB, default)
- *   node scripts/fetch-model-assets.mjs --fp16     # + fp16 model (+88MB)
+ *   node scripts/fetch-model-assets.mjs --fp16     # + fp16 model (+88MB, default)
+ *   node scripts/fetch-model-assets.mjs --full     # + full fp32 model (+176MB)
  *   node scripts/fetch-model-assets.mjs --force    # re-download
  *
  * The script is idempotent: files that already exist (and are referenced by
@@ -26,7 +27,8 @@ const OUT = join(ROOT, 'public/imgly');
 const FORCE = process.argv.includes('--force');
 
 const MODELS = ['isnet_quint8'];
-if (process.argv.includes('--fp16')) MODELS.push('isnet_fp16');
+if (!process.argv.includes('--no-fp16')) MODELS.push('isnet_fp16');
+if (process.argv.includes('--full')) MODELS.push('isnet');
 
 const CONCURRENCY = 4;
 

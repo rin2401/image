@@ -11,6 +11,7 @@ import './style.css';
 import { CompareSlider } from './ui/compareSlider';
 import { collectDom, domEngineId, setDisabled, type AppDom } from './ui/dom';
 import {
+  DEFAULT_AI_MODEL,
   EngineUnavailableError,
   describeProgress,
   loadEngine,
@@ -556,7 +557,7 @@ class App {
         result = await engine.removeBackgroundAi(
           item.input,
           (p: AiProgress) => this.onAiProgress(p, item),
-          this.modelSelect?.value() ?? 'isnet_quint8',
+          this.modelSelect?.value() ?? DEFAULT_AI_MODEL,
         );
       } else {
         const preview = await this.decodePreview(item);

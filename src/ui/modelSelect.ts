@@ -6,7 +6,7 @@
  * first time the engine UI is wired. If [data-model-select] already exists in
  * the markup we use it as-is instead.
  */
-import { AI_MODELS } from './engineAdapter';
+import { AI_MODELS, DEFAULT_AI_MODEL } from './engineAdapter';
 import type { AiModelId } from './engineAdapter';
 import { t } from './i18n';
 import { $$, setAttr } from './utils';
@@ -54,7 +54,7 @@ const LABEL_KEY: Record<OfferedModelId, 'model.fast' | 'model.hq'> = {
 
 /** Build (or adopt) the model picker inside the AI panel. */
 export function createModelSelect(panel: HTMLElement | null): ModelSelect {
-  const fallback: ModelSelect = { value: () => 'isnet_quint8', element: null };
+  const fallback: ModelSelect = { value: () => DEFAULT_AI_MODEL, element: null };
   if (!panel) return fallback;
 
   let root = panel.querySelector<HTMLElement>('[data-model-select]');
@@ -95,7 +95,7 @@ export function createModelSelect(panel: HTMLElement | null): ModelSelect {
   }
 
   const stored = readStored();
-  const initial: AiModelId = stored ?? 'isnet_quint8';
+  const initial: AiModelId = stored ?? DEFAULT_AI_MODEL;
   for (const input of inputs) input.checked = input.value === initial;
   syncPressed(inputs);
 
@@ -117,7 +117,7 @@ export function createModelSelect(panel: HTMLElement | null): ModelSelect {
 
 function readValue(inputs: HTMLInputElement[]): AiModelId {
   const checked = inputs.find((input) => input.checked)?.value ?? '';
-  return isModelId(checked) ? checked : 'isnet_quint8';
+  return isModelId(checked) ? checked : DEFAULT_AI_MODEL;
 }
 
 function syncPressed(inputs: HTMLInputElement[]): void {

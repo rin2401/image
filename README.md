@@ -50,10 +50,11 @@ scripts/
 
 Package `@imgly/background-removal` **không** đóng gói sẵn model trong npm (file `dist/resources.json` rỗng).
 Khi chạy, nó tải `resources.json` + các chunk ONNX từ `publicPath`. `npm run build` chạy
-`scripts/fetch-model-assets.mjs` để tải các asset đó (model `isnet_quint8` ~44MB + onnxruntime wasm ~35MB)
-về `public/imgly/`, nhờ vậy GitHub Pages phục vụ chúng cùng origin. Nếu bước này thất bại,
-ứng dụng tự động fallback sang CDN của IMG.LY (`staticimgly.com`). Bật thêm model fp16 bằng
-`npm run assets:models -- --fp16` (nặng hơn ~88MB).
+`scripts/fetch-model-assets.mjs` để tải các asset đó (model `isnet_fp16` ~88MB — mặc định UI —
+kèm bản nhẹ `isnet_quint8` ~44MB + onnxruntime wasm ~35MB) về `public/imgly/`, nhờ vậy
+GitHub Pages phục vụ chúng cùng origin. Nếu bước này thất bại, ứng dụng tự động fallback sang
+CDN của IMG.LY (`staticimgly.com`). Muốn artifact nhẹ hơn, bỏ model fp16 bằng
+`npm run assets:models -- --no-fp16`; thêm model fp32 đầy đủ bằng `--full` (~176MB).
 
 ## Deploy
 

@@ -8,6 +8,20 @@
 /** Which background-removal engine to use. */
 export type EngineId = 'ai' | 'fast';
 
+/** Which ISNet model variant the AI engine should use. */
+export type AiModelId = 'isnet_quint8' | 'isnet' | 'isnet_fp16';
+
+/**
+ * Default AI model — the single source of truth shared by the engine and UI.
+ *
+ * `isnet_fp16` (~88 MB) is the quality plateau: it matches the 176 MB fp32
+ * model at half the download, while `isnet_quint8` (~44 MB) visibly degrades
+ * on soft-edged subjects (speckle holes, hair contamination). Defined here —
+ * not in `ai.ts` — so the UI can import the constant without pulling the
+ * heavy engine bundle into the first-paint chunk.
+ */
+export const DEFAULT_AI_MODEL: AiModelId = 'isnet_fp16';
+
 /**
  * Tuning knobs exposed in the UI, all normalised to `0..1`.
  *

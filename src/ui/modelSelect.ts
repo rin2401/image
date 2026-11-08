@@ -18,6 +18,11 @@ export interface ModelSelect {
   element: HTMLElement | null;
 }
 
+export interface ModelSelectOptions {
+  /** Fired when the user changes the selected model (after persistence). */
+  onChange?: (model: AiModelId) => void;
+}
+
 function isModelId(value: string | null): value is AiModelId {
   return !!value && AI_MODELS.some((model) => model.id === value);
 }
@@ -53,7 +58,10 @@ const LABEL_KEY: Record<OfferedModelId, 'model.fast' | 'model.hq'> = {
 };
 
 /** Build (or adopt) the model picker inside the AI panel. */
-export function createModelSelect(panel: HTMLElement | null): ModelSelect {
+export function createModelSelect(
+  panel: HTMLElement | null,
+  options: ModelSelectOptions = {},
+): ModelSelect {
   const fallback: ModelSelect = { value: () => DEFAULT_AI_MODEL, element: null };
   if (!panel) return fallback;
 
@@ -107,6 +115,7 @@ export function createModelSelect(panel: HTMLElement | null): ModelSelect {
     } catch {
       /* private mode — ignore */
     }
+    options.onChange?.(value);
   });
 
   return {

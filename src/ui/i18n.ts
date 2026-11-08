@@ -1,10 +1,9 @@
 /**
  * Lightweight i18n for the app chrome (ru + vi).
  *
- * Language is chosen by: `?lang=` URL param → <html lang> → browser language
- * → default. Markup authored in index.html declares which language it was
- * written in; if that differs from the chosen one we overwrite the documented
- * `data-i18n` slots (and keep the text otherwise untouched).
+ * Language is chosen by: `?lang=` URL param → `<html lang>` → default. The
+ * browser language never overrides the authored Vietnamese markup — a
+ * supported `?lang=` value is the only explicit opt-in for another language.
  */
 
 export type Lang = 'vi' | 'ru';
@@ -238,13 +237,9 @@ export function detectLang(): Lang {
   } catch {
     /* ignore malformed URL */
   }
-  // index.html is authored in Vietnamese; only switch away from it when the
-  // visitor explicitly asked for another language (via ?lang= or the browser
-  // language being a supported one that differs from the page language).
-  const pageLang = normalize(document.documentElement.lang) ?? DEFAULT_LANG;
-  const nav =
-    typeof navigator !== 'undefined' ? normalize(navigator.languages?.[0] ?? navigator.language) : null;
-  return nav ?? pageLang;
+  // index.html is authored in Vietnamese; the page language is the source of
+  // truth. A supported `?lang=` param (handled above) is the only opt-in.
+  return normalize(document.documentElement.lang) ?? DEFAULT_LANG;
 }
 
 export function initI18n(): Lang {

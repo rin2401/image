@@ -16,6 +16,7 @@ import {
   describeProgress,
   loadEngine,
   type AiProgress,
+  type AiModelId,
   type RemovalOptions,
 } from './ui/engineAdapter';
 import { createModelSelect, type ModelSelect } from './ui/modelSelect';
@@ -731,7 +732,23 @@ class App {
 
   private ensureModelSelect(): void {
     if (this.modelSelect) return;
-    this.modelSelect = createModelSelect(this.dom.aiPanel);
+    this.modelSelect = createModelSelect(this.dom.aiPanel, {
+      onChange: (model) => this.onModelChange(model),
+    });
+  }
+
+  /** Model switch → warm the new model up and re-run the current image (AI only). */
+  private onModelChange(model: AiModelId): void {
+    // Best-effort warm-up so the next AI run does not pay the download cost.
+    void loadEngine()
+      .then((engine) => engine.preloadAiModel(model))
+      .catch(() => {
+        /* preload is optional — the next run will fetch on demand */
+      });
+
+    // The model only affects the AI engine; never touch a Fast-mode result.
+    if (domEngineId(this.dom) !== 'ai') return;
+    this.scheduleEngineReapply();
   }
 
   private applyEngineVisibility(): void {

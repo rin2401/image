@@ -25,9 +25,13 @@
  * downloads when the user actually picks the AI engine.
  */
 import { encodePng } from './canvas';
+import { DEFAULT_AI_MODEL, type AiModelId } from './types';
 
 /** Models the UI may request. All are shipped by `@imgly/background-removal`. */
-export type AiModelId = 'isnet_quint8' | 'isnet' | 'isnet_fp16';
+export type { AiModelId } from './types';
+
+/** Default AI model — defined in `engine/types.ts`, shared with the UI adapter. */
+export { DEFAULT_AI_MODEL } from './types';
 
 /** Progress reported while downloading / warming up the model. */
 export interface AiProgress {
@@ -62,9 +66,6 @@ export interface AiRemoveOptions {
    */
   maxDimension?: number;
 }
-
-/** Smallest download; ~44 MB of chunks. Chosen as the default on purpose. */
-export const DEFAULT_AI_MODEL: AiModelId = 'isnet_quint8';
 
 /** Official asset host, used when the vendored copy is missing an asset. */
 const CDN_BASE = 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
@@ -345,6 +346,8 @@ export async function removeBackgroundAi(
     } else {
       blob = await run('cpu');
     }
+
+    onProgress?.({ loaded: 1, total: 1, ratio: 1, label: 'Hoàn tất' });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Distinguish "we never got the weights" from "the model ran and failed".
@@ -358,11 +361,12 @@ export async function removeBackgroundAi(
       throw new Error(ERR_LOAD);
     }
     throw new Error(ERR_RUN);
+  } finally {
+    // Release the shared progress relay on success *and* failure so a settled
+    // call can never receive (or leak into) the next run's progress events.
+    activeProgress = undefined;
+    routeProgress = () => {};
   }
-
-  onProgress?.({ loaded: 1, total: 1, ratio: 1, label: 'Hoàn tất' });
-  activeProgress = undefined;
-  routeProgress = () => {};
 
   return solidAlpha(blob);
 }
